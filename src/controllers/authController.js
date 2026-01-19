@@ -5,18 +5,9 @@ import passwordResetService from "../services/passwordResetService.js";
 class AuthController {
   async register(req, res, next) {
     try {
-      console.log("📥 Données reçues pour l'inscription:", req.body);
-
       const { username, email, password, confirmPassword, name } = req.body;
 
-      console.log("✅ username:", username);
-      console.log("✅ email:", email);
-      console.log("✅ password:", password ? "***" : undefined);
-      console.log("✅ confirmPassword:", confirmPassword ? "***" : undefined);
-      console.log("✅ name:", name);
-
       if (!username || !email || !password || !confirmPassword) {
-        console.log("❌ Champs manquants détectés");
         return res.status(400).json({
           success: false,
           message: "Veuillez fournir tous les champs requis",
@@ -24,14 +15,11 @@ class AuthController {
       }
 
       if (password !== confirmPassword) {
-        console.log("❌ Les mots de passe ne correspondent pas");
         return res.status(400).json({
           success: false,
           message: "Les mots de passe ne correspondent pas",
         });
       }
-
-      console.log("🔄 Tentative de création de l'utilisateur...");
 
       const result = await authService.register({
         username,
@@ -39,8 +27,6 @@ class AuthController {
         password,
         name: name,
       });
-
-      console.log("✅ Utilisateur créé avec succès:", result.user.username);
 
       return res.status(201).json({
         success: true,
@@ -171,8 +157,6 @@ class AuthController {
     try {
       const { email } = req.body;
 
-      console.log("📧 Demande de réinitialisation pour:", email);
-
       const result = await passwordResetService.forgotPassword(email);
 
       return res.status(200).json({
@@ -181,8 +165,6 @@ class AuthController {
         ...(process.env.NODE_ENV === "development" && { token: result.token }),
       });
     } catch (error) {
-      console.error("❌ Erreur forgot password:", error.message);
-
       return res.status(200).json({
         success: true,
         message:
@@ -194,8 +176,6 @@ class AuthController {
   async resetPassword(req, res, next) {
     try {
       const { token, newPassword } = req.body;
-
-      console.log("🔑 Tentative de réinitialisation de mot de passe");
 
       if (!token || !newPassword) {
         return res.status(400).json({
@@ -209,14 +189,11 @@ class AuthController {
         newPassword
       );
 
-      console.log("✅ Mot de passe réinitialisé avec succès");
-
       return res.status(200).json({
         success: true,
         message: result.message,
       });
     } catch (error) {
-      console.error("❌ Erreur reset password:", error.message);
       return res.status(400).json({
         success: false,
         message: error.message || "Token invalide ou expiré",

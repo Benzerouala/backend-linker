@@ -434,58 +434,34 @@ class UserService {
    */
   async deleteUser(userId) {
     try {
-      console.log("Début de la suppression de l'utilisateur:", userId);
-      
       // 1. Supprimer toutes les notifications envoyées/reçues par l'utilisateur
-      console.log("Suppression des notifications...");
-      const notificationsDeleted = await Notification.deleteMany({
+      await Notification.deleteMany({
         $or: [{ recipient: userId }, { sender: userId }]
       });
-      console.log("Notifications supprimées:", notificationsDeleted);
 
       // 2. Supprimer tous les threads de l'utilisateur
-      console.log("Suppression des threads...");
-      const threadsDeleted = await Thread.deleteMany({ author: userId });
-      console.log("Threads supprimés:", threadsDeleted);
+      await Thread.deleteMany({ author: userId });
 
       // 3. Supprimer toutes les réponses de l'utilisateur
-      console.log("Suppression des réponses...");
-      const repliesDeleted = await Reply.deleteMany({ author: userId });
-      console.log("Réponses supprimées:", repliesDeleted);
+      await Reply.deleteMany({ author: userId });
 
       // 4. Supprimer tous les likes de l'utilisateur
-      console.log("Suppression des likes...");
-      const likesDeleted = await Like.deleteMany({ user: userId });
-      console.log("Likes supprimés:", likesDeleted);
+      await Like.deleteMany({ user: userId });
 
       // 5. Supprimer les paramètres de l'utilisateur
-      console.log("Suppression des paramètres...");
-      const settingsDeleted = await Settings.deleteMany({ user: userId });
-      console.log("Paramètres supprimés:", settingsDeleted);
+      await Settings.deleteMany({ user: userId });
 
       // 6. Nettoyer les relations de suivi (follower et following)
-      console.log("Suppression des relations de suivi...");
-      const followsDeleted = await Follow.deleteMany({
+      await Follow.deleteMany({
         $or: [{ follower: userId }, { following: userId }],
       });
-      console.log("Relations de suivi supprimées:", followsDeleted);
 
       // 7. Supprimer l'utilisateur lui-même
-      console.log("Suppression de l'utilisateur...");
       const userDeleted = await User.findByIdAndDelete(userId);
-      console.log("Utilisateur supprimé:", userDeleted);
 
       return {
         message: "Utilisateur et toutes ses données supprimés avec succès",
-        details: {
-          notifications: notificationsDeleted.deletedCount,
-          threads: threadsDeleted.deletedCount,
-          replies: repliesDeleted.deletedCount,
-          likes: likesDeleted.deletedCount,
-          settings: settingsDeleted.deletedCount,
-          follows: followsDeleted.deletedCount,
-          user: userDeleted ? 1 : 0
-        }
+        user: userDeleted
       };
     } catch (error) {
       console.error("Erreur détaillée lors de la suppression:", error);

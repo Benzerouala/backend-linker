@@ -1,4 +1,4 @@
-// backend/src/models/Follow.js
+// backend/src/models/Like.js
 import mongoose from "mongoose";
 
 const likeSchema = new mongoose.Schema(
