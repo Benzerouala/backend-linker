@@ -38,6 +38,8 @@ class SocketService {
 
     // Gestion des connexions
     this.io.on("connection", (socket) => {
+      console.log(`✅ Utilisateur connecté: ${socket.userId}`);
+      
       // Ajouter l'utilisateur à la liste des connectés
       this.connectedUsers.set(socket.userId, socket.id);
 
@@ -49,6 +51,7 @@ class SocketService {
 
       // Gérer la déconnexion
       socket.on("disconnect", () => {
+        console.log(`❌ Utilisateur déconnecté: ${socket.userId}`);
         this.connectedUsers.delete(socket.userId);
       });
 
@@ -64,7 +67,7 @@ class SocketService {
           // Envoyer le nouveau compteur
           this.sendUnreadCount(socket.userId);
         } catch (error) {
-          // Erreur silencieuse pour ne pas interrompre la connexion
+          console.error("Erreur mark_notifications_read:", error);
         }
       });
 
@@ -79,7 +82,7 @@ class SocketService {
       });
     });
 
-    // Socket.IO initialisé
+    console.log("🔌 Socket.IO initialisé");
   }
 
   /**
@@ -114,7 +117,7 @@ class SocketService {
         });
       }
     } catch (error) {
-      // Erreur silencieuse pour ne pas interrompre le service
+      console.error("Erreur sendUnreadCount:", error);
     }
   }
 

@@ -54,6 +54,7 @@ class NotificationService {
 
       return notification;
     } catch (error) {
+      console.error("Erreur createNotification:", error);
       throw error;
     }
   }
@@ -100,7 +101,7 @@ class NotificationService {
         }
       }
     } catch (error) {
-      // Erreur silencieuse pour ne pas interrompre le traitement
+      console.error("Erreur createMentionNotifications:", error);
     }
   }
 
@@ -173,9 +174,10 @@ class NotificationService {
         isRead: true,
       });
 
+      console.log(`Nettoyage: ${result.deletedCount} anciennes notifications supprimées`);
       return result.deletedCount;
     } catch (error) {
-      // Erreur silencieuse pour le nettoyage
+      console.error("Erreur cleanupOldNotifications:", error);
     }
   }
 

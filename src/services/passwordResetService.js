@@ -47,6 +47,8 @@ class PasswordResetService {
         throw new Error("Cet email n'est pas enregistré");
       }
 
+      console.log("👤 Utilisateur trouvé:", user.username);
+
       // Générer le token de réinitialisation
       const resetToken = this.generateResetToken(user._id);
 
@@ -55,6 +57,8 @@ class PasswordResetService {
         process.env.FRONTEND_URL || "http://localhost:5173"
       }/reset-password?token=${resetToken}`;
 
+      console.log("🔗 URL de réinitialisation générée");
+
       // Envoyer l'email de réinitialisation
       await emailService.sendResetPasswordEmail(
         user.email,
@@ -62,11 +66,14 @@ class PasswordResetService {
         resetUrl
       );
 
+      console.log("✅ Email de réinitialisation envoyé");
+
       return {
         message: "Email de réinitialisation envoyé avec succès",
         token: resetToken, // ⚠️ À retirer en production
       };
     } catch (error) {
+      console.error("❌ Erreur dans forgotPassword:", error.message);
       throw error;
     }
   }
@@ -78,6 +85,8 @@ class PasswordResetService {
     try {
       // Vérifier et décoder le token
       const decoded = this.verifyResetToken(token);
+
+      console.log("✅ Token valide pour l'utilisateur:", decoded.id);
 
       // Rechercher l'utilisateur
       const user = await User.findById(decoded.id).select("+password");
@@ -91,14 +100,19 @@ class PasswordResetService {
         throw new Error("Le mot de passe doit contenir au moins 8 caractères");
       }
 
+      console.log("🔄 Mise à jour du mot de passe pour:", user.username);
+
       // Mettre à jour le mot de passe (sera hashé automatiquement par le hook)
       user.password = newPassword;
       await user.save();
+
+      console.log("✅ Mot de passe mis à jour avec succès");
 
       return {
         message: "Mot de passe réinitialisé avec succès",
       };
     } catch (error) {
+      console.error("❌ Erreur dans resetPassword:", error.message);
       throw error;
     }
   }

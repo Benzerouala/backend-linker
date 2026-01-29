@@ -9,9 +9,15 @@ class EmailService {
   getTransporter() {
     if (this.transporter) return this.transporter;
 
+    console.log("📧 Création du transporter email avec SendGrid...");
+
     const emailService = process.env.EMAIL_SERVICE;
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASSWORD;
+
+    console.log("Service:", emailService);
+    console.log("User:", emailUser);
+    console.log("Pass exists:", !!emailPass);
 
     if (!emailUser || !emailPass) {
       throw new Error("Variables d'environnement EMAIL non configurées!");
@@ -52,6 +58,7 @@ class EmailService {
       });
     }
 
+    console.log("✅ Transporter créé avec succès");
     return this.transporter;
   }
 
@@ -62,8 +69,10 @@ class EmailService {
     try {
       const transporter = this.getTransporter();
       await transporter.verify();
+      console.log("✅ Connexion au serveur email vérifiée");
       return true;
     } catch (error) {
+      console.error("❌ Erreur de connexion au serveur email:", error.message);
       return false;
     }
   }
@@ -166,8 +175,16 @@ L'équipe Nexus
       const transporter = this.getTransporter();
       const info = await transporter.sendMail(mailOptions);
 
+      console.log("✅ Email de réinitialisation envoyé avec succès");
+      console.log("📬 Message ID:", info.messageId);
+      console.log("📧 Destinataire:", userEmail);
+
       return { success: true, messageId: info.messageId };
     } catch (error) {
+      console.error("❌ Erreur lors de l'envoi de l'email de réinitialisation");
+      console.error("Message:", error.message);
+      console.error("Code:", error.code);
+      console.error("Réponse:", error.response);
       throw new Error(`Erreur email: ${error.message}`);
     }
   }
@@ -256,64 +273,76 @@ L'équipe Nexus
         `,
       };
 
-    const transporter = this.getTransporter();
-    const info = await transporter.sendMail(mailOptions);
+      const transporter = this.getTransporter();
+      const info = await transporter.sendMail(mailOptions);
 
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    // Ne pas lever d'erreur pour ne pas bloquer l'inscription
-    return { success: false, error: error.message };
+      console.log("✅ Email de bienvenue envoyé avec succès");
+      console.log("📬 Message ID:", info.messageId);
+      console.log("📧 Destinataire:", userEmail);
+
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("❌ Erreur lors de l'envoi de l'email de bienvenue");
+      console.error("Message:", error.message);
+
+      // Ne pas lever d'erreur pour ne pas bloquer l'inscription
+      return { success: false, error: error.message };
+    }
   }
-}
 
-/**
- * Envoyer un email de notification
- */
-async sendNotificationEmail(userEmail, userName, subject, message) {
-  try {
-    const mailOptions = {
-      from: {
-        name: "Nexus",
-        address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      },
-      to: userEmail,
-      subject: subject,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center;">
-                <h1 style="margin: 0; color: white; font-size: 20px;">Nexus</h1>
+  /**
+   * Envoyer un email de notification
+   */
+  async sendNotificationEmail(userEmail, userName, subject, message) {
+    try {
+      const mailOptions = {
+        from: {
+          name: "Nexus",
+          address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        },
+        to: userEmail,
+        subject: subject,
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: white;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center;">
+                  <h1 style="margin: 0; color: white; font-size: 20px;">Nexus</h1>
+                </div>
+                
+                <div style="padding: 40px 30px; background-color: white;">
+                  <p style="color: #333; margin-bottom: 20px;">Bonjour <strong>${userName}</strong>,</p>
+                  <div style="color: #555; line-height: 1.8;">${message}</div>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+                  <p style="color: #6c757d; font-size: 12px; margin: 0;">© 2025 Nexus. Tous droits réservés.</p>
+                </div>
               </div>
-              
-              <div style="padding: 40px 30px; background-color: white;">
-                <p style="color: #333; margin-bottom: 20px;">Bonjour <strong>${userName}</strong>,</p>
-                <div style="color: #555; line-height: 1.8;">${message}</div>
-              </div>
-              
-              <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
-                <p style="color: #6c757d; font-size: 12px; margin: 0;">© 2025 Nexus. Tous droits réservés.</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
-      text: `Bonjour ${userName},\n\n${message}\n\n© 2025 Nexus`,
-    };
+            </body>
+          </html>
+        `,
+        text: `Bonjour ${userName},\n\n${message}\n\n© 2025 Nexus`,
+      };
 
-    const transporter = this.getTransporter();
-    const info = await transporter.sendMail(mailOptions);
+      const transporter = this.getTransporter();
+      const info = await transporter.sendMail(mailOptions);
 
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    return { success: false, error: error.message };
+      console.log("✅ Email de notification envoyé avec succès");
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error(
+        "❌ Erreur lors de l'envoi de l'email de notification:",
+        error.message
+      );
+      return { success: false, error: error.message };
+    }
   }
-}
 }
 
 export default new EmailService();
