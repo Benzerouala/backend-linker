@@ -14,9 +14,27 @@ class ThreadController {
 
       let media = null
       if (req.file) {
-        // Fichier uploadé localement
+        // Convertir l'image en base64 et stocker dans MongoDB
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
+        const imageBuffer = fs.readFileSync(filePath);
+        const base64Image = imageBuffer.toString('base64');
+        const mimeType = req.file.mimetype;
+        
+        // Stocker en base64 dans MongoDB
+        const base64Url = `data:${mimeType};base64,${base64Image}`;
+        
+        // Supprimer le fichier temporaire
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          console.log('Fichier temporaire non supprimé:', unlinkError.message);
+        }
+        
         media = {
-          url: `/uploads/${req.file.filename}`,
+          url: base64Url,
           type: req.file.mimetype.startsWith("image/") ? "image" : "video",
         }
       }
@@ -180,9 +198,27 @@ class ThreadController {
 
       let media = null
       if (req.file) {
-        // Fichier uploadé localement
+        // Convertir l'image en base64 et stocker dans MongoDB
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
+        const imageBuffer = fs.readFileSync(filePath);
+        const base64Image = imageBuffer.toString('base64');
+        const mimeType = req.file.mimetype;
+        
+        // Stocker en base64 dans MongoDB
+        const base64Url = `data:${mimeType};base64,${base64Image}`;
+        
+        // Supprimer le fichier temporaire
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          console.log('Fichier temporaire non supprimé:', unlinkError.message);
+        }
+        
         media = {
-          url: `/uploads/${req.file.filename}`,
+          url: base64Url,
           type: req.file.mimetype.startsWith("image/") ? "image" : "video",
         }
       }
