@@ -31,8 +31,9 @@ class ReplyController {
         content: content.trim(),
       })
 
-      // Incrémenter le compteur de réponses sur le thread
-      await Thread.findByIdAndUpdate(threadId, { $inc: { repliesCount: 1 } })
+      // Ajouter la réponse au tableau replies du thread (comme pour les likes)
+      thread.replies.push(reply._id)
+      await thread.save()
 
       // Détecter et créer les notifications de mention
       await notificationService.createMentionNotifications(content, authorId, threadId);
@@ -113,7 +114,13 @@ class ReplyController {
       }
 
       await Reply.findByIdAndDelete(id)
-      await Thread.findByIdAndUpdate(reply.thread, { $inc: { repliesCount: -1 } })
+      
+      // Retirer la réponse du tableau replies du thread (comme pour les likes)
+      const thread = await Thread.findById(reply.thread)
+      if (thread) {
+        thread.replies = thread.replies.filter(replyId => replyId.toString() !== id.toString())
+        await thread.save()
+      }
 
       res.status(200).json({ success: true, message: "Réponse supprimée" })
     } catch (error) {

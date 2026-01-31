@@ -113,6 +113,7 @@ class ThreadService {
             return {
               ...thread.toObject(),
               isLiked: !!isLiked,
+              repliesCount: thread.replies ? thread.replies.length : 0,
               author: {
                 ...thread.author.toObject(),
                 isFollowing: isFollowing, // true si suivi ou en attente
@@ -121,6 +122,12 @@ class ThreadService {
             };
           })
         );
+      } else {
+        // Si pas d'utilisateur connecté, ajouter seulement le repliesCount
+        threadsWithLikes = threads.map(thread => ({
+          ...thread.toObject(),
+          repliesCount: thread.replies ? thread.replies.length : 0,
+        }));
       }
 
       return {
@@ -215,6 +222,7 @@ class ThreadService {
           return {
             ...thread.toObject(),
             isLiked: !!isLiked,
+            repliesCount: thread.replies ? thread.replies.length : 0,
             author: {
               ...thread.author.toObject(),
               isFollowing: !!followStatus,
@@ -283,6 +291,7 @@ class ThreadService {
         .populate("author", "username name profilePicture isVerified");
 
       threadData.replies = replies;
+      threadData.repliesCount = replies.length;
 
       return threadData;
     } catch (error) {
@@ -333,11 +342,6 @@ class ThreadService {
           status: { $in: ["accepte", "en_attente"] }
         }).select("following status");
 
-        const followedMap = new Map();
-        followedUsers.forEach(f => {
-          followedMap.set(f.following.toString(), f.status);
-        });
-
         threadsWithLikes = await Promise.all(
           threads.map(async (thread) => {
             const isLiked = await Like.exists({
@@ -346,19 +350,25 @@ class ThreadService {
             });
 
             const authorId = thread.author._id.toString();
-            const followStatus = followedMap.get(authorId);
+            const followStatus = followedUsers.find(f => f.following.toString() === authorId);
 
             return {
               ...thread.toObject(),
               isLiked: !!isLiked,
+              repliesCount: thread.replies ? thread.replies.length : 0,
               author: {
                 ...thread.author.toObject(),
                 isFollowing: !!followStatus,
-                followStatus: followStatus
+                followStatus: followStatus ? followStatus.status : null
               }
             };
           })
         );
+      } else {
+        threadsWithLikes = threads.map(thread => ({
+          ...thread.toObject(),
+          repliesCount: thread.replies ? thread.replies.length : 0,
+        }));
       }
 
       return {
