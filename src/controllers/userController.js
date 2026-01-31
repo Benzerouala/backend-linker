@@ -129,26 +129,9 @@ class UserController {
       const userId = req.user.id;
       let imageUrl = req.body.imageUrl;
 
-      // ✅ AJOUT upload fichier avec base64 pour production
+      // ✅ AJOUT upload fichier
       if (req.file) {
-        // Lire le fichier et le convertir en base64
-        const fs = await import('fs');
-        const path = await import('path');
-        
-        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
-        const imageBuffer = fs.readFileSync(filePath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = req.file.mimetype;
-        
-        // Stocker en base64 dans MongoDB
-        imageUrl = `data:${mimeType};base64,${base64Image}`;
-        
-        // Supprimer le fichier temporaire
-        try {
-          fs.unlinkSync(filePath);
-        } catch (unlinkError) {
-          console.log('Fichier temporaire non supprimé:', unlinkError.message);
-        }
+        imageUrl = `/uploads/${req.file.filename}`;
       }
 
       if (!imageUrl) {
