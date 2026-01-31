@@ -129,9 +129,25 @@ class UserController {
       const userId = req.user.id;
       let imageUrl = req.body.imageUrl;
 
-      // ✅ AJOUT upload fichier
+      // ✅ Convertir l'image en base64 et stocker dans MongoDB
       if (req.file) {
-        imageUrl = `/uploads/${req.file.filename}`;
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
+        const imageBuffer = fs.readFileSync(filePath);
+        const base64Image = imageBuffer.toString('base64');
+        const mimeType = req.file.mimetype;
+        
+        // Stocker en base64 dans MongoDB
+        imageUrl = `data:${mimeType};base64,${base64Image}`;
+        
+        // Supprimer le fichier temporaire
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          console.log('Fichier temporaire non supprimé:', unlinkError.message);
+        }
       }
 
       if (!imageUrl) {
@@ -168,9 +184,25 @@ class UserController {
       const userId = req.user.id;
       let imageUrl = req.body.imageUrl;
 
-      // ✅ AJOUT upload fichier
+      // ✅ Convertir l'image en base64 et stocker dans MongoDB
       if (req.file) {
-        imageUrl = `/uploads/${req.file.filename}`;
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
+        const imageBuffer = fs.readFileSync(filePath);
+        const base64Image = imageBuffer.toString('base64');
+        const mimeType = req.file.mimetype;
+        
+        // Stocker en base64 dans MongoDB
+        imageUrl = `data:${mimeType};base64,${base64Image}`;
+        
+        // Supprimer le fichier temporaire
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          console.log('Fichier temporaire non supprimé:', unlinkError.message);
+        }
       }
 
       if (!imageUrl) {
