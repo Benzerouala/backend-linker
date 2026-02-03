@@ -38,6 +38,7 @@ app.use(
         "http://localhost:5174",
         "http://localhost:5175",
         "http://localhost:3000",
+        "https://linker-y90l.onrender.com",
         process.env.FRONTEND_URL,
       ].filter(Boolean);
 
