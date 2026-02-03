@@ -268,10 +268,16 @@ class UserService {
         .select("_id username name profilePicture bio isVerified isPrivate")
         .limit(limit);
 
+      const filteredUsers = currentUserId
+        ? users.filter(
+            (user) => user._id.toString() !== currentUserId.toString(),
+          )
+        : users;
+
       // Ajouter le statut de suivi
       if (currentUserId) {
         const usersWithFollowStatus = await Promise.all(
-          users.map(async (user) => {
+          filteredUsers.map(async (user) => {
             const followRelation = await Follow.findOne({
               follower: currentUserId,
               following: user._id,
@@ -288,7 +294,7 @@ class UserService {
         return usersWithFollowStatus;
       }
 
-      return users;
+      return filteredUsers;
     } catch (error) {
       throw new Error("Erreur lors de la recherche d'utilisateurs");
     }
@@ -448,8 +454,20 @@ class UserService {
       const threadsDeleted = await Thread.deleteMany({ author: userId });
       console.log("Threads supprimés:", threadsDeleted);
 
-      // 3. Supprimer toutes les réponses de l'utilisateur
+      // 3. Supprimer toutes les réponses de l'utilisateur et décrémenter les compteurs
       console.log("Suppression des réponses...");
+      // Récupérer toutes les réponses pour connaître leurs threads
+      const userReplies = await Reply.find({ author: userId }).select("thread");
+      // Compter les réponses par thread pour décrémenter correctement
+      const threadCounts = {};
+      userReplies.forEach(reply => {
+        const threadId = reply.thread.toString();
+        threadCounts[threadId] = (threadCounts[threadId] || 0) + 1;
+      });
+      // Décrémenter les compteurs pour chaque thread concerné
+      for (const [threadId, count] of Object.entries(threadCounts)) {
+        await Thread.findByIdAndUpdate(threadId, { $inc: { repliesCount: -count } });
+      }
       const repliesDeleted = await Reply.deleteMany({ author: userId });
       console.log("Réponses supprimées:", repliesDeleted);
 

@@ -20,6 +20,14 @@ coverage
 # Dependency directories
 node_modules/
 
+# Legacy / unused
+composer.lock
+env.example
+nodemon.json
+healthcheck.js
+docker-compose.yml
+migrate-replies-count.js
+
 # Optional npm cache directory
 .npm
 

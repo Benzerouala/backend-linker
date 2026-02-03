@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema(
     profilePicture: {
       type: String,
       default: function () {
-        return `https://ui-avatars.com/api/?name=${this.username}&size=200&background=6366f1&color=fff&bold=true`;
+        return `https://ui-avatars.com/api/?name=${this.username}&size=200&background=4FD04C&color=fff&bold=true`;
       },
     },
 
@@ -91,7 +91,14 @@ const userSchema = new mongoose.Schema(
       validate: {
         validator: function(birthDate) {
           if (!birthDate) return true; // Optional
-          const age = new Date().getFullYear() - new Date(birthDate).getFullYear();
+          const today = new Date();
+          const birth = new Date(birthDate);
+          let age = today.getFullYear() - birth.getFullYear();
+          const monthDiff = today.getMonth() - birth.getMonth();
+          // Ajuster l'âge si l'anniversaire n'est pas encore passé cette année
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            age--;
+          }
           return age >= 13 && age <= 120;
         },
         message: "Vous devez avoir entre 13 et 120 ans",
@@ -202,7 +209,6 @@ userSchema.methods.getPublicProfile = function () {
     id: this._id,
     username: this.username,
     name: this.name || this.username,
-    email: this.email,
     bio: this.bio,
     profilePicture: this.profilePicture,
     coverImage: this.coverImage,

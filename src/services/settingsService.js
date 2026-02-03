@@ -209,6 +209,7 @@ class SettingsService {
         case "follow_accepted":
           return settings.notifications[channel]?.followAccepted ?? true;
         case "thread_like":
+        case "reply_like":
           return settings.notifications[channel]?.threadLike ?? true;
         case "thread_reply":
           return settings.notifications[channel]?.threadReply ?? true;

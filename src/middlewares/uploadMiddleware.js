@@ -10,16 +10,20 @@ const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("✅ Dossier uploads créé:", uploadsDir);
 }
 
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    console.log("📤 Uploading file:", file.originalname, "to:", uploadsDir);
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const finalFilename = uniqueSuffix + path.extname(file.originalname);
+    console.log("📝 File saved as:", finalFilename);
+    cb(null, finalFilename);
   },
 });
 
@@ -35,8 +39,10 @@ const fileFilter = (req, file, cb) => {
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
+    console.log("✅ File type allowed:", file.mimetype);
     cb(null, true);
   } else {
+    console.log("❌ File type not allowed:", file.mimetype);
     cb(new Error("Type de fichier non supporté"), false);
   }
 };

@@ -11,6 +11,8 @@ const notificationSchema = new mongoose.Schema(
         "follow_accepted",
         "thread_like",
         "thread_reply",
+        "thread_repost",
+        "reply_like", // ✅ AJOUTER CELUI-CI pour les likes sur réponses
         "mention",
         "content_validated",
         "content_flagged",
@@ -32,6 +34,11 @@ const notificationSchema = new mongoose.Schema(
       ref: "Thread",
       default: null,
     },
+    reply: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Reply",
+      default: null,
+    },
     isRead: {
       type: Boolean,
       default: false,
@@ -39,7 +46,7 @@ const notificationSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index pour améliorer les performances

@@ -21,7 +21,10 @@ class FollowService {
     });
 
     if (existingFollow) {
-      if (existingFollow.status === "requested") {
+      if (
+        existingFollow.status === "requested" ||
+        existingFollow.status === "en_attente"
+      ) {
         throw new Error("Demande déjà envoyée");
       }
       throw new Error("Vous suivez déjà cet utilisateur");
@@ -87,9 +90,13 @@ class FollowService {
    */
   async acceptFollowRequest(followerId, followingId) {
     const follow = await Follow.findOneAndUpdate(
-      { follower: followerId, following: followingId, status: "en_attente" },
+      {
+        follower: followerId,
+        following: followingId,
+        status: { $in: ["en_attente", "requested"] },
+      },
       { status: "accepte" },
-      { new: true }
+      { new: true },
     );
 
     if (!follow) {
@@ -116,7 +123,7 @@ class FollowService {
     const follow = await Follow.findOneAndDelete({
       follower: followerId,
       following: followingId,
-      status: "en_attente",
+      status: { $in: ["en_attente", "requested"] },
     });
 
     if (!follow) {
@@ -132,9 +139,21 @@ class FollowService {
   async getPendingRequests(userId) {
     return await Follow.find({
       following: userId,
-      status: "en_attente",
+      status: { $in: ["en_attente", "requested"] },
     })
       .populate("follower", "username name profilePicture bio isVerified")
+      .sort({ createdAt: -1 });
+  }
+
+  /**
+   * Obtenir les demandes envoyees (en attente)
+   */
+  async getSentRequests(userId) {
+    return await Follow.find({
+      follower: userId,
+      status: { $in: ["en_attente", "requested"] },
+    })
+      .populate("following", "username name profilePicture bio isVerified isPrivate")
       .sort({ createdAt: -1 });
   }
 
@@ -171,7 +190,10 @@ class FollowService {
       following: userId,
       status: "accepte",
     })
-      .populate("follower", "username name profilePicture bio isVerified")
+      .populate(
+        "follower",
+        "username name profilePicture bio isVerified isPrivate",
+      )
       .sort({ createdAt: -1 });
 
     return followers.map((f) => f.follower);
@@ -210,7 +232,10 @@ class FollowService {
       follower: userId,
       status: "accepte",
     })
-      .populate("following", "username name profilePicture bio isVerified")
+      .populate(
+        "following",
+        "username name profilePicture bio isVerified isPrivate",
+      )
       .sort({ createdAt: -1 });
 
     return following.map((f) => f.following);

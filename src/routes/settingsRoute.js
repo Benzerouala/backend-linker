@@ -9,9 +9,32 @@ const router = express.Router();
 router.use(authMiddleware);
 
 /**
+ * @swagger
+ * tags:
+ *   name: Settings
+ *   description: User settings
+ */
+
+/**
  * @route   GET /api/settings
  * @desc    Obtenir tous les paramètres de l'utilisateur
  * @access  Private
+ */
+/**
+ * @swagger
+ * /api/settings:
+ *   get:
+ *     tags: [Settings]
+ *     summary: Get user settings
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Settings data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
  */
 router.get("/", settingsController.getSettings);
 
@@ -32,6 +55,28 @@ router.get("/", settingsController.getSettings);
  *          inApp: { ... même structure ... }
  *        }
  */
+/**
+ * @swagger
+ * /api/settings/notifications:
+ *   put:
+ *     tags: [Settings]
+ *     summary: Update notification settings
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Settings updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
+ */
 router.put("/notifications", settingsController.updateNotifications);
 
 /**
@@ -47,6 +92,28 @@ router.put("/notifications", settingsController.updateNotifications);
  *          allowDirectMessages: "everyone" | "followers" | "people_i_follow" | "nobody"
  *        }
  */
+/**
+ * @swagger
+ * /api/settings/privacy:
+ *   put:
+ *     tags: [Settings]
+ *     summary: Update privacy settings
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Settings updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
+ */
 router.put("/privacy", settingsController.updatePrivacy);
 
 /**
@@ -60,6 +127,28 @@ router.put("/privacy", settingsController.updatePrivacy);
  *          showSensitiveContent: Boolean
  *        }
  */
+/**
+ * @swagger
+ * /api/settings/display:
+ *   put:
+ *     tags: [Settings]
+ *     summary: Update display settings
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Settings updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
+ */
 router.put("/display", settingsController.updateDisplay);
 
 /**
@@ -71,6 +160,28 @@ router.put("/display", settingsController.updateDisplay);
  *          showMediaPreviews: Boolean,
  *          enableMentions: Boolean
  *        }
+ */
+/**
+ * @swagger
+ * /api/settings/content:
+ *   put:
+ *     tags: [Settings]
+ *     summary: Update content settings
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Settings updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
  */
 router.put("/content", settingsController.updateContent);
 
@@ -85,12 +196,50 @@ router.put("/content", settingsController.updateContent);
  *          content: { ... }
  *        }
  */
+/**
+ * @swagger
+ * /api/settings:
+ *   put:
+ *     tags: [Settings]
+ *     summary: Update all settings
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Settings updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
+ */
 router.put("/", settingsController.updateAllSettings);
 
 /**
  * @route   POST /api/settings/reset
  * @desc    Réinitialiser tous les paramètres aux valeurs par défaut
  * @access  Private
+ */
+/**
+ * @swagger
+ * /api/settings/reset:
+ *   post:
+ *     tags: [Settings]
+ *     summary: Reset settings
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Settings reset
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
  */
 router.post("/reset", settingsController.resetSettings);
 
@@ -100,6 +249,28 @@ router.post("/reset", settingsController.resetSettings);
  * @access  Private
  * @param   targetUserId - ID de l'utilisateur cible
  */
+/**
+ * @swagger
+ * /api/settings/check-permission/{targetUserId}:
+ *   get:
+ *     tags: [Settings]
+ *     summary: Check view permission
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: targetUserId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Permission result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
+ */
 router.get("/check-permission/:targetUserId", settingsController.checkViewPermission);
 
 /**
@@ -107,6 +278,28 @@ router.get("/check-permission/:targetUserId", settingsController.checkViewPermis
  * @desc    Vérifier si l'utilisateur actuel peut mentionner un autre utilisateur
  * @access  Private
  * @param   targetUserId - ID de l'utilisateur cible
+ */
+/**
+ * @swagger
+ * /api/settings/check-mention/{targetUserId}:
+ *   get:
+ *     tags: [Settings]
+ *     summary: Check mention permission
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: targetUserId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Permission result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SuccessResponse"
  */
 router.get("/check-mention/:targetUserId", settingsController.checkMentionPermission);
 

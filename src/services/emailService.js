@@ -1,42 +1,52 @@
 
+import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.resendClient = null;
   }
 
+  /**
+   * Initialiser Resend
+   */
+  initResend() {
+    if (this.resendClient) return this.resendClient;
+
+    const emailService = process.env.EMAIL_SERVICE;
+    const emailPass = process.env.EMAIL_PASSWORD;
+
+    if (emailService === "resend" && emailPass) {
+      this.resendClient = new Resend(emailPass);
+      console.log("✅ Resend initialisé");
+      return this.resendClient;
+    }
+    return null;
+  }
+
+  /**
+   * Obtenir transporter pour services SMTP
+   */
   getTransporter() {
     if (this.transporter) return this.transporter;
-
-    console.log("📧 Création du transporter email avec SendGrid...");
 
     const emailService = process.env.EMAIL_SERVICE;
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASSWORD;
 
-    console.log("Service:", emailService);
-    console.log("User:", emailUser);
-    console.log("Pass exists:", !!emailPass);
+    // Si Resend, on utilise l'API, pas SMTP
+    if (emailService === "resend") {
+      this.initResend();
+      return null; // Pas de transporter pour Resend API
+    }
 
     if (!emailUser || !emailPass) {
       throw new Error("Variables d'environnement EMAIL non configurées!");
     }
 
-    // Configuration pour SendGrid
-    if (emailService === "sendgrid") {
-      this.transporter = nodemailer.createTransport({
-        host: "smtp.sendgrid.net",
-        port: 587,
-        secure: false, // true pour le port 465, false pour les autres ports
-        auth: {
-          user: emailUser, // Devrait être 'apikey'
-          pass: emailPass, // Votre clé API SendGrid
-        },
-      });
-    }
     // Configuration pour Ethereal (pour les tests)
-    else if (emailService === "ethereal") {
+    if (emailService === "ethereal") {
       this.transporter = nodemailer.createTransport({
         host: "smtp.ethereal.email",
         port: 587,
@@ -67,10 +77,21 @@ class EmailService {
    */
   async verifyConnection() {
     try {
+      const emailService = process.env.EMAIL_SERVICE;
+      
+      if (emailService === "resend") {
+        this.initResend();
+        console.log("✅ Resend API configurée");
+        return true;
+      }
+
       const transporter = this.getTransporter();
-      await transporter.verify();
-      console.log("✅ Connexion au serveur email vérifiée");
-      return true;
+      if (transporter) {
+        await transporter.verify();
+        console.log("✅ Connexion au serveur email vérifiée");
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error("❌ Erreur de connexion au serveur email:", error.message);
       return false;
@@ -82,13 +103,26 @@ class EmailService {
    */
   async sendResetPasswordEmail(userEmail, userName, resetUrl) {
     try {
+      // Validation de l'email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userEmail)) {
+        throw new Error("Adresse email invalide");
+      }
+
       const mailOptions = {
         from: {
-          name: "Nexus",
+          name: "Linker",
           address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         },
         to: userEmail,
-        subject: "🔐 Réinitialisation de votre mot de passe",
+        replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        subject: "Réinitialisation de votre mot de passe - Linker",
+        // En-têtes pour améliorer la délivrabilité
+        headers: {
+          "X-Mailer": "Linker",
+          "List-Unsubscribe": `<${process.env.FRONTEND_URL || "http://localhost:5173"}/unsubscribe>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
         html: `
           <!DOCTYPE html>
           <html>
@@ -96,90 +130,99 @@ class EmailService {
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-              <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
-                  <h1 style="margin: 0; color: white; font-size: 24px;">🔐 Réinitialisation de mot de passe</h1>
-                  <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Nexus</p>
+            <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #ffffff;">
+              <div style="max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333333; font-size: 20px; margin-bottom: 20px;">Reinitialisation de mot de passe</h2>
+                
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                  Bonjour ${userName},
+                </p>
+                
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                  Nous avons reçu une demande de réinitialisation du mot de passe pour votre compte Linker.
+                </p>
+                
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                  Pour réinitialiser votre mot de passe, copiez et collez le lien ci-dessous dans votre navigateur :
+                </p>
+                
+                <div style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0; word-break: break-all;">
+                  <p style="color: #0066cc; font-size: 14px; margin: 0; font-family: monospace;">${resetUrl}</p>
                 </div>
                 
-                <!-- Content -->
-                <div style="padding: 40px 30px; background-color: white;">
-                  <p style="font-size: 18px; color: #333; margin-bottom: 20px;">Bonjour <strong>${userName}</strong> 👋</p>
-                  
-                  <p style="color: #555; line-height: 1.8; margin-bottom: 30px;">
-                    Nous avons reçu une demande de réinitialisation du mot de passe pour votre compte. 
-                    Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe.
-                  </p>
-                  
-                  <!-- Button -->
-                  <div style="text-align: center; margin: 35px 0;">
-                    <a href="${resetUrl}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
-                      Réinitialiser mon mot de passe
-                    </a>
-                  </div>
-                  
-                  <!-- Warning Box -->
-                  <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 25px 0; border-radius: 4px;">
-                    <p style="color: #856404; font-size: 14px; margin: 5px 0;"><strong>⏱️ Important :</strong></p>
-                    <p style="color: #856404; font-size: 14px; margin: 5px 0;">• Ce lien est valable pendant <strong>1 heure</strong></p>
-                    <p style="color: #856404; font-size: 14px; margin: 5px 0;">• Il ne peut être utilisé qu'une seule fois</p>
-                  </div>
-                  
-                  <!-- Link Box -->
-                  <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Si le bouton ne fonctionne pas, copiez et collez ce lien :</p>
-                    <p style="color: #667eea; font-size: 13px; word-break: break-all; margin: 0;">${resetUrl}</p>
-                  </div>
-                  
-                  <p style="color: #555; line-height: 1.8; margin-top: 30px;">
-                    <strong>Vous n'avez pas demandé cette réinitialisation ?</strong><br>
-                    Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email. 
-                    Votre mot de passe actuel reste inchangé et votre compte est en sécurité.
-                  </p>
-                </div>
+                <p style="margin: 20px 0;">
+                  <a href="${resetUrl}" style="color: #0066cc; font-size: 16px; text-decoration: underline;">Cliquez ici pour réinitialiser votre mot de passe</a>
+                </p>
                 
-                <!-- Footer -->
-                <div style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #6c757d; font-size: 13px; margin: 8px 0;"><strong>Nexus</strong></p>
-                  <p style="color: #6c757d; font-size: 13px; margin: 8px 0;">Besoin d'aide ? Contactez notre support</p>
-                  <p style="color: #6c757d; font-size: 12px; margin: 20px 0 0 0;">© 2025 Nexus. Tous droits réservés.</p>
-                </div>
+                <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-top: 30px; margin-bottom: 10px;">
+                  <strong>Important :</strong> Ce lien est valable pendant 1 heure et ne peut être utilisé qu'une seule fois.
+                </p>
+                
+                <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-top: 20px;">
+                  Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe actuel reste inchangé.
+                </p>
+                
+                <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-top: 40px;">
+                  Cordialement,<br>
+                  L'équipe Linker
+                </p>
               </div>
             </body>
           </html>
         `,
-        text: `
-Bonjour ${userName},
+        text: `Bonjour ${userName},
 
-Nous avons reçu une demande de réinitialisation du mot de passe pour votre compte.
+Nous avons reçu une demande de réinitialisation du mot de passe pour votre compte Linker.
 
-Cliquez sur ce lien pour créer un nouveau mot de passe :
+Pour réinitialiser votre mot de passe, copiez et collez ce lien dans votre navigateur :
 ${resetUrl}
 
-⏱️ Important :
-- Ce lien est valable pendant 1 heure
-- Il ne peut être utilisé qu'une seule fois
+Important : Ce lien est valable pendant 1 heure et ne peut être utilisé qu'une seule fois.
 
-Vous n'avez pas demandé cette réinitialisation ?
-Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email. Votre mot de passe actuel reste inchangé.
+Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe actuel reste inchangé.
 
 Cordialement,
-L'équipe Nexus
-
-© 2025 Nexus. Tous droits réservés.
-        `,
+L'équipe Linker`,
       };
 
-      const transporter = this.getTransporter();
-      const info = await transporter.sendMail(mailOptions);
+      // Utiliser Resend API ou SMTP selon la config
+      const emailService = process.env.EMAIL_SERVICE;
+      
+      if (emailService === "resend") {
+        const resend = this.initResend();
+        if (!resend) {
+          throw new Error("Resend non initialisé");
+        }
 
-      console.log("✅ Email de réinitialisation envoyé avec succès");
-      console.log("📬 Message ID:", info.messageId);
-      console.log("📧 Destinataire:", userEmail);
+        const { data, error } = await resend.emails.send({
+          from: `Linker <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+          to: userEmail,
+          replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+          subject: "Réinitialisation de votre mot de passe - Linker",
+          html: mailOptions.html,
+          text: mailOptions.text,
+          headers: mailOptions.headers,
+        });
 
-      return { success: true, messageId: info.messageId };
+        if (error) {
+          throw new Error(`Resend error: ${error.message}`);
+        }
+
+        console.log("✅ Email de réinitialisation envoyé avec succès (Resend)");
+        console.log("📬 Message ID:", data?.id);
+        console.log("📧 Destinataire:", userEmail);
+
+        return { success: true, messageId: data?.id || `resend-${Date.now()}` };
+      } else {
+        const transporter = this.getTransporter();
+        const info = await transporter.sendMail(mailOptions);
+
+        console.log("✅ Email de réinitialisation envoyé avec succès");
+        console.log("📬 Message ID:", info.messageId);
+        console.log("📧 Destinataire:", userEmail);
+
+        return { success: true, messageId: info.messageId };
+      }
     } catch (error) {
       console.error("❌ Erreur lors de l'envoi de l'email de réinitialisation");
       console.error("Message:", error.message);
@@ -194,13 +237,27 @@ L'équipe Nexus
    */
   async sendWelcomeEmail(userEmail, userName) {
     try {
+      // Validation de l'email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userEmail)) {
+        console.warn(`⚠️ Email invalide ignoré: ${userEmail}`);
+        return { success: false, error: "Email invalide" };
+      }
+
       const mailOptions = {
         from: {
-          name: "Nexus",
+          name: "Linker",
           address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         },
         to: userEmail,
-        subject: "🎉 Bienvenue dans notre communauté !",
+        replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        subject: "Bienvenue sur Linker !",
+        // En-têtes pour améliorer la délivrabilité
+        headers: {
+          "X-Mailer": "Linker",
+          "List-Unsubscribe": `<${process.env.FRONTEND_URL || "http://localhost:5173"}/unsubscribe>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
         html: `
           <!DOCTYPE html>
           <html>
@@ -208,79 +265,85 @@ L'équipe Nexus
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-              <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
-                  <h1 style="margin: 0; color: white; font-size: 24px;">Bienvenue ${userName} ! 🎉</h1>
-                </div>
+            <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #ffffff;">
+              <div style="max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333333; font-size: 20px; margin-bottom: 20px;">Bienvenue sur Linker</h2>
                 
-                <!-- Content -->
-                <div style="padding: 40px 30px; background-color: white;">
-                  <p style="color: #555; line-height: 1.8; margin-bottom: 20px;">
-                    Merci de vous être inscrit sur notre plateforme !
-                  </p>
-                  
-                  <p style="color: #555; line-height: 1.8; margin-bottom: 30px;">
-                    Vous pouvez maintenant accéder à votre compte et commencer à explorer notre communauté. 
-                    Nous sommes ravis de vous avoir parmi nous ! 🚀
-                  </p>
-                  
-                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #333; margin-top: 0;">Prochaines étapes :</h3>
-                    <ul style="color: #555; line-height: 2;">
-                      <li>Complétez votre profil</li>
-                      <li>Ajoutez des amis</li>
-                      <li>Partagez votre premier post</li>
-                    </ul>
-                  </div>
-                  
-                  <div style="text-align: center; margin: 35px 0;">
-                    <a href="${
-                      process.env.FRONTEND_URL || "http://localhost:3000"
-                    }" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                      Commencer maintenant
-                    </a>
-                  </div>
-                </div>
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                  Bonjour ${userName},
+                </p>
                 
-                <!-- Footer -->
-                <div style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #6c757d; font-size: 13px; margin: 8px 0;"><strong>Nexus</strong></p>
-                  <p style="color: #6c757d; font-size: 13px; margin: 8px 0;">Besoin d'aide ? Contactez notre support</p>
-                  <p style="color: #6c757d; font-size: 12px; margin: 20px 0 0 0;">© 2025 Nexus. Tous droits réservés.</p>
-                </div>
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                  Merci de vous être inscrit sur Linker !
+                </p>
+                
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                  Vous pouvez maintenant accéder à votre compte et commencer à explorer Linker.
+                </p>
+                
+                <p style="margin: 30px 0;">
+                  <a href="${process.env.FRONTEND_URL || "http://localhost:5173"}" style="color: #0066cc; font-size: 16px; text-decoration: underline;">Accéder à mon compte</a>
+                </p>
+                
+                <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-top: 40px;">
+                  Cordialement,<br>
+                  L'équipe Linker
+                </p>
               </div>
             </body>
           </html>
         `,
-        text: `
-Bienvenue ${userName} ! 🎉
+        text: `Bonjour ${userName},
 
-Merci de vous être inscrit sur notre plateforme !
+Merci de vous être inscrit sur Linker !
 
-Vous pouvez maintenant accéder à votre compte et commencer à explorer notre communauté. Nous sommes ravis de vous avoir parmi nous !
+Vous pouvez maintenant accéder à votre compte et commencer à explorer Linker.
 
-Prochaines étapes :
-- Complétez votre profil
-- Ajoutez des amis
-- Partagez votre premier post
+Accéder à mon compte : ${process.env.FRONTEND_URL || "http://localhost:5173"}
 
 Cordialement,
-L'équipe Nexus
-
-© 2025 Nexus. Tous droits réservés.
-        `,
+L'équipe Linker`,
       };
 
-      const transporter = this.getTransporter();
-      const info = await transporter.sendMail(mailOptions);
+      // Utiliser Resend API ou SMTP selon la config
+      const emailService = process.env.EMAIL_SERVICE;
+      
+      if (emailService === "resend") {
+        const resend = this.initResend();
+        if (!resend) {
+          return { success: false, error: "Resend non initialisé" };
+        }
 
-      console.log("✅ Email de bienvenue envoyé avec succès");
-      console.log("📬 Message ID:", info.messageId);
-      console.log("📧 Destinataire:", userEmail);
+        const { data, error } = await resend.emails.send({
+          from: `Linker <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+          to: userEmail,
+          replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+          subject: "Bienvenue sur Linker !",
+          html: mailOptions.html,
+          text: mailOptions.text,
+          headers: mailOptions.headers,
+        });
 
-      return { success: true, messageId: info.messageId };
+        if (error) {
+          console.error("❌ Erreur Resend:", error);
+          return { success: false, error: error.message };
+        }
+
+        console.log("✅ Email de bienvenue envoyé avec succès (Resend)");
+        console.log("📬 Message ID:", data?.id);
+        console.log("📧 Destinataire:", userEmail);
+
+        return { success: true, messageId: data?.id || `resend-${Date.now()}` };
+      } else {
+        const transporter = this.getTransporter();
+        const info = await transporter.sendMail(mailOptions);
+
+        console.log("✅ Email de bienvenue envoyé avec succès");
+        console.log("📬 Message ID:", info.messageId);
+        console.log("📧 Destinataire:", userEmail);
+
+        return { success: true, messageId: info.messageId };
+      }
     } catch (error) {
       console.error("❌ Erreur lors de l'envoi de l'email de bienvenue");
       console.error("Message:", error.message);
@@ -295,13 +358,28 @@ L'équipe Nexus
    */
   async sendNotificationEmail(userEmail, userName, subject, message) {
     try {
+      // Validation de l'email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userEmail)) {
+        console.warn(`⚠️ Email invalide ignoré: ${userEmail}`);
+        return { success: false, error: "Email invalide" };
+      }
+
+      const appUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       const mailOptions = {
         from: {
-          name: "Nexus",
+          name: "Linker",
           address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         },
         to: userEmail,
+        replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         subject: subject,
+        // En-têtes pour améliorer la délivrabilité
+        headers: {
+          "X-Mailer": "Linker",
+          "List-Unsubscribe": `<${appUrl}/unsubscribe>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
         html: `
           <!DOCTYPE html>
           <html>
@@ -309,32 +387,68 @@ L'équipe Nexus
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-              <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center;">
-                  <h1 style="margin: 0; color: white; font-size: 20px;">Nexus</h1>
+            <body style="margin: 0; padding: 20px; font-family: Arial, sans-serif; background-color: #ffffff;">
+              <div style="max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333333; font-size: 20px; margin-bottom: 20px;">Linker</h2>
+                
+                <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                  Bonjour ${userName},
+                </p>
+                
+                <div style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                  ${message}
                 </div>
                 
-                <div style="padding: 40px 30px; background-color: white;">
-                  <p style="color: #333; margin-bottom: 20px;">Bonjour <strong>${userName}</strong>,</p>
-                  <div style="color: #555; line-height: 1.8;">${message}</div>
-                </div>
+                <p style="margin: 30px 0;">
+                  <a href="${appUrl}" style="color: #0066cc; font-size: 16px; text-decoration: underline;">Ouvrir Linker</a>
+                </p>
                 
-                <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #6c757d; font-size: 12px; margin: 0;">© 2025 Nexus. Tous droits réservés.</p>
-                </div>
+                <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-top: 40px;">
+                  Cordialement,<br>
+                  L'équipe Linker
+                </p>
               </div>
             </body>
           </html>
         `,
-        text: `Bonjour ${userName},\n\n${message}\n\n© 2025 Nexus`,
+        text: `Bonjour ${userName},\n\n${message}\n\nOuvrir Linker: ${appUrl}\n\nCordialement,\nL'équipe Linker`,
       };
 
-      const transporter = this.getTransporter();
-      const info = await transporter.sendMail(mailOptions);
+      // Utiliser Resend API ou SMTP selon la config
+      const emailService = process.env.EMAIL_SERVICE;
+      
+      if (emailService === "resend") {
+        const resend = this.initResend();
+        if (!resend) {
+          return { success: false, error: "Resend non initialisé" };
+        }
 
-      console.log("✅ Email de notification envoyé avec succès");
-      return { success: true, messageId: info.messageId };
+        const { data, error } = await resend.emails.send({
+          from: `Linker <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+          to: userEmail,
+          replyTo: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+          subject: subject,
+          html: mailOptions.html,
+          text: mailOptions.text,
+          headers: mailOptions.headers,
+        });
+
+        if (error) {
+          console.error("❌ Erreur Resend:", error);
+          return { success: false, error: error.message };
+        }
+
+        console.log("✅ Email de notification envoyé avec succès (Resend)");
+        console.log("📬 Message ID:", data?.id);
+
+        return { success: true, messageId: data?.id || `resend-${Date.now()}` };
+      } else {
+        const transporter = this.getTransporter();
+        const info = await transporter.sendMail(mailOptions);
+
+        console.log("✅ Email de notification envoyé avec succès");
+        return { success: true, messageId: info.messageId };
+      }
     } catch (error) {
       console.error(
         "❌ Erreur lors de l'envoi de l'email de notification:",

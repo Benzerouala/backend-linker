@@ -17,6 +17,17 @@ class FollowController {
       })
     } catch (error) {
       console.error("Follow error:", error)
+      const isAlready =
+        error.message?.includes("déjà") ||
+        error.message?.includes("Déjà")
+      if (isAlready) {
+        res.status(200).json({
+          success: true,
+          message: error.message,
+        })
+        return
+      }
+
       res.status(400).json({
         success: false,
         message: error.message,
@@ -74,6 +85,20 @@ class FollowController {
       })
     } catch (error) {
       res.status(500).json({ success: false, message: "Erreur lors de la récupération des demandes" })
+    }
+  }
+
+  async getSentRequests(req, res) {
+    try {
+      const userId = req.user.id
+      const requests = await followService.getSentRequests(userId)
+
+      res.status(200).json({
+        success: true,
+        data: requests,
+      })
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Erreur lors de la récupération des demandes envoyees" })
     }
   }
 

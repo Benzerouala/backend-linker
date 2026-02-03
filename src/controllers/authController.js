@@ -181,8 +181,17 @@ class AuthController {
         ...(process.env.NODE_ENV === "development" && { token: result.token }),
       });
     } catch (error) {
-      console.error("❌ Erreur forgot password:", error.message);
+      // Logger l'erreur pour le débogage en développement
+      if (process.env.NODE_ENV === "development") {
+        console.error("❌ Erreur forgot password:", error.message);
+        console.error("Stack:", error.stack);
+      } else {
+        // En production, logger de manière sécurisée sans exposer de détails
+        console.error("❌ Erreur lors de la demande de réinitialisation");
+      }
 
+      // Pour des raisons de sécurité, toujours retourner le même message
+      // pour éviter l'énumération d'emails
       return res.status(200).json({
         success: true,
         message:

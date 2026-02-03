@@ -1,5 +1,6 @@
 //backend/src/controllers/threadController.js
-import threadService from "../services/threadService.js"
+import Thread from "../models/Thread.js";
+import threadService from "../services/threadService.js";
 
 class ThreadController {
   /**
@@ -9,34 +10,30 @@ class ThreadController {
    */
   async createThread(req, res) {
     try {
-      const authorId = req.user.id
-      const { content } = req.body
+      const authorId = req.user.id;
+      const { content } = req.body;
 
-      let media = null
+      console.log(
+        "📝 createThread - authorId:",
+        authorId,
+        "content:",
+        content?.substring(0, 50),
+      );
+      console.log(
+        "📁 req.file:",
+        req.file
+          ? `${req.file.filename} (${req.file.size} bytes)`
+          : "❌ No file",
+      );
+
+      let media = null;
       if (req.file) {
-        // Convertir l'image en base64 et stocker dans MongoDB
-        const fs = await import('fs');
-        const path = await import('path');
-        
-        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
-        const imageBuffer = fs.readFileSync(filePath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = req.file.mimetype;
-        
-        // Stocker en base64 dans MongoDB
-        const base64Url = `data:${mimeType};base64,${base64Image}`;
-        
-        // Supprimer le fichier temporaire
-        try {
-          fs.unlinkSync(filePath);
-        } catch (unlinkError) {
-          console.log('Fichier temporaire non supprimé:', unlinkError.message);
-        }
-        
+        // Fichier uploadé localement
         media = {
-          url: base64Url,
+          url: `/uploads/${req.file.filename}`,
           type: req.file.mimetype.startsWith("image/") ? "image" : "video",
-        }
+        };
+        console.log("✅ Media set:", media);
       }
 
       if (!content || content.trim().length === 0) {
@@ -45,7 +42,7 @@ class ThreadController {
           return res.status(400).json({
             success: false,
             message: "Le contenu ou un média est requis",
-          })
+          });
         }
       }
 
@@ -53,22 +50,22 @@ class ThreadController {
         return res.status(400).json({
           success: false,
           message: "Le contenu ne peut pas dépasser 500 caractères",
-        })
+        });
       }
 
-      const thread = await threadService.createThread(authorId, content, media)
+      const thread = await threadService.createThread(authorId, content, media);
 
       res.status(201).json({
         success: true,
         message: "Thread créé avec succès",
         data: thread,
-      })
+      });
     } catch (error) {
-      console.error("Erreur createThread:", error)
+      console.error("Erreur createThread:", error);
       res.status(400).json({
         success: false,
         message: error.message || "Erreur lors de la création du thread",
-      })
+      });
     }
   }
 
@@ -79,21 +76,25 @@ class ThreadController {
    */
   async getAllThreads(req, res) {
     try {
-      const { page = 1, limit = 20 } = req.query
-      const currentUserId = req.user?.id
+      const { page = 1, limit = 20 } = req.query;
+      const currentUserId = req.user?.id;
 
-      const result = await threadService.getAllThreads(Number.parseInt(page), Number.parseInt(limit), currentUserId)
+      const result = await threadService.getAllThreads(
+        Number.parseInt(page),
+        Number.parseInt(limit),
+        currentUserId,
+      );
 
       res.status(200).json({
         success: true,
         data: result,
-      })
+      });
     } catch (error) {
-      console.error("Erreur getAllThreads:", error)
+      console.error("Erreur getAllThreads:", error);
       res.status(500).json({
         success: false,
         message: "Erreur lors de la récupération des threads",
-      })
+      });
     }
   }
 
@@ -104,21 +105,56 @@ class ThreadController {
    */
   async getThreadById(req, res) {
     try {
-      const { id } = req.params
-      const currentUserId = req.user?.id
+      const { id } = req.params;
+      const currentUserId = req.user?.id;
 
-      const thread = await threadService.getThreadById(id, currentUserId)
+      const thread = await threadService.getThreadById(id, currentUserId);
 
       res.status(200).json({
         success: true,
         data: thread,
-      })
+      });
     } catch (error) {
-      console.error("Erreur getThreadById:", error)
+      console.error("Erreur getThreadById:", error);
       res.status(404).json({
         success: false,
         message: error.message || "Thread non trouvé",
-      })
+      });
+    }
+  }
+
+  /**
+   * @route   GET /api/threads/:id/likes
+   * @desc    Obtenir la liste des likes d'un thread
+   * @access  Public
+   */
+  async getThreadLikes(req, res) {
+    try {
+      const { id } = req.params;
+      const thread = await Thread.findById(id).populate(
+        "likes",
+        "username name profilePicture isVerified",
+      );
+
+      if (!thread) {
+        return res.status(404).json({
+          success: false,
+          message: "Thread non trouvé",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          users: thread.likes || [],
+        },
+      });
+    } catch (error) {
+      console.error("Erreur getThreadLikes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la récupération des likes",
+      });
     }
   }
 
@@ -129,15 +165,15 @@ class ThreadController {
    */
   async getUserThreads(req, res) {
     try {
-      const { userId } = req.params
-      const { page = 1, limit = 20 } = req.query
-      const currentUserId = req.user?.id
+      const { userId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+      const currentUserId = req.user?.id;
 
       if (!userId || userId === "undefined") {
         return res.status(400).json({
           success: false,
           message: "ID utilisateur non valide",
-        })
+        });
       }
 
       const result = await threadService.getUserThreads(
@@ -145,18 +181,18 @@ class ThreadController {
         Number.parseInt(page),
         Number.parseInt(limit),
         currentUserId,
-      )
+      );
 
       res.status(200).json({
         success: true,
         data: result,
-      })
+      });
     } catch (error) {
-      console.error("Erreur getUserThreads:", error)
+      console.error("Erreur getUserThreads:", error);
       res.status(500).json({
         success: false,
         message: "Erreur lors de la récupération des threads",
-      })
+      });
     }
   }
 
@@ -167,21 +203,21 @@ class ThreadController {
    */
   async deleteThread(req, res) {
     try {
-      const { id } = req.params
-      const userId = req.user.id
+      const { id } = req.params;
+      const userId = req.user.id;
 
-      const result = await threadService.deleteThread(id, userId)
+      const result = await threadService.deleteThread(id, userId);
 
       res.status(200).json({
         success: true,
         message: result.message,
-      })
+      });
     } catch (error) {
-      console.error("Erreur deleteThread:", error)
+      console.error("Erreur deleteThread:", error);
       res.status(403).json({
         success: false,
         message: error.message || "Non autorisé",
-      })
+      });
     }
   }
 
@@ -192,35 +228,17 @@ class ThreadController {
    */
   async updateThread(req, res) {
     try {
-      const { id } = req.params
-      const userId = req.user.id
-      const { content } = req.body
+      const { id } = req.params;
+      const userId = req.user.id;
+      const { content } = req.body;
 
-      let media = null
+      let media = null;
       if (req.file) {
-        // Convertir l'image en base64 et stocker dans MongoDB
-        const fs = await import('fs');
-        const path = await import('path');
-        
-        const filePath = path.join(process.cwd(), 'src', 'uploads', req.file.filename);
-        const imageBuffer = fs.readFileSync(filePath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = req.file.mimetype;
-        
-        // Stocker en base64 dans MongoDB
-        const base64Url = `data:${mimeType};base64,${base64Image}`;
-        
-        // Supprimer le fichier temporaire
-        try {
-          fs.unlinkSync(filePath);
-        } catch (unlinkError) {
-          console.log('Fichier temporaire non supprimé:', unlinkError.message);
-        }
-        
+        // Fichier uploadé localement
         media = {
-          url: base64Url,
+          url: `/uploads/${req.file.filename}`,
           type: req.file.mimetype.startsWith("image/") ? "image" : "video",
-        }
+        };
       }
 
       if (content !== undefined) {
@@ -230,30 +248,35 @@ class ThreadController {
             return res.status(400).json({
               success: false,
               message: "Le contenu ne peut pas être vide sans média",
-            })
+            });
           }
         }
         if (content.length > 500) {
           return res.status(400).json({
             success: false,
             message: "Le contenu ne peut pas dépasser 500 caractères",
-          })
+          });
         }
       }
 
-      const thread = await threadService.updateThread(id, userId, content, media)
+      const thread = await threadService.updateThread(
+        id,
+        userId,
+        content,
+        media,
+      );
 
       res.status(200).json({
         success: true,
         message: "Thread mis à jour avec succès",
         data: thread,
-      })
+      });
     } catch (error) {
-      console.error("Erreur updateThread:", error)
+      console.error("Erreur updateThread:", error);
       res.status(400).json({
         success: false,
         message: error.message || "Erreur lors de la mise à jour du thread",
-      })
+      });
     }
   }
 
@@ -264,22 +287,22 @@ class ThreadController {
    */
   async likeThread(req, res) {
     try {
-      const { id } = req.params
-      const userId = req.user.id
+      const { id } = req.params;
+      const userId = req.user.id;
 
-      const result = await threadService.likeThread(id, userId)
+      const result = await threadService.likeThread(id, userId);
 
       res.status(200).json({
         success: true,
         message: result.message,
         data: { likesCount: result.likesCount },
-      })
+      });
     } catch (error) {
-      console.error("Erreur likeThread:", error)
+      console.error("Erreur likeThread:", error);
       res.status(400).json({
         success: false,
         message: error.message || "Erreur lors du like",
-      })
+      });
     }
   }
 
@@ -290,22 +313,22 @@ class ThreadController {
    */
   async unlikeThread(req, res) {
     try {
-      const { id } = req.params
-      const userId = req.user.id
+      const { id } = req.params;
+      const userId = req.user.id;
 
-      const result = await threadService.unlikeThread(id, userId)
+      const result = await threadService.unlikeThread(id, userId);
 
       res.status(200).json({
         success: true,
         message: result.message,
         data: { likesCount: result.likesCount },
-      })
+      });
     } catch (error) {
-      console.error("Erreur unlikeThread:", error)
+      console.error("Erreur unlikeThread:", error);
       res.status(400).json({
         success: false,
         message: error.message || "Erreur lors du unlike",
-      })
+      });
     }
   }
 
@@ -316,33 +339,36 @@ class ThreadController {
    */
   async searchThreads(req, res) {
     try {
-      const { q, page = 1, limit = 20 } = req.query
-      const currentUserId = req.user?.id
+      const { q, page = 1, limit = 10 } = req.query;
+      const currentUserId = req.user?.id;
 
-      if (!q) {
+      if (!q || q.trim() === "") {
         return res.status(400).json({
           success: false,
           message: "La requête de recherche est requise",
-        })
+        });
       }
 
       const result = await threadService.searchThreads(
-        q,
+        q.trim(),
         Number.parseInt(page),
         Number.parseInt(limit),
-        currentUserId
-      )
+        currentUserId,
+      );
 
       res.status(200).json({
         success: true,
-        data: result.threads,
-      })
+        data: {
+          threads: result.threads,
+          pagination: result.pagination,
+        },
+      });
     } catch (error) {
-      console.error("Erreur searchThreads:", error)
+      console.error("Erreur searchThreads:", error);
       res.status(500).json({
         success: false,
         message: "Erreur lors de la recherche des threads",
-      })
+      });
     }
   }
 
@@ -353,27 +379,78 @@ class ThreadController {
    */
   async getHomeFeed(req, res) {
     try {
-      const { page = 1, limit = 20 } = req.query
-      const currentUserId = req.user.id
+      const { page = 1, limit = 20 } = req.query;
+      const currentUserId = req.user.id;
 
       const result = await threadService.getFollowedThreads(
         Number.parseInt(page),
         Number.parseInt(limit),
         currentUserId,
-      )
+      );
 
       res.status(200).json({
         success: true,
         data: result,
-      })
+      });
     } catch (error) {
-      console.error("Erreur getHomeFeed:", error)
+      console.error("Erreur getHomeFeed:", error);
       res.status(500).json({
         success: false,
         message: "Erreur lors de la récupération du flux d'actualité",
-      })
+      });
+    }
+  }
+
+  /**
+   * @route   POST /api/threads/:id/repost
+   * @desc    Reposter un thread
+   * @access  Private
+   */
+  async repostThread(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const repost = await threadService.repostThread(id, userId);
+
+      res.status(201).json({
+        success: true,
+        message: "Thread reposté avec succès",
+        data: repost,
+      });
+    } catch (error) {
+      console.error("Erreur repostThread:", error);
+      res.status(400).json({
+        success: false,
+        message: error.message || "Erreur lors du repost",
+      });
+    }
+  }
+
+  /**
+   * @route   DELETE /api/threads/:id/repost
+   * @desc    Annuler un repost
+   * @access  Private
+   */
+  async unrepostThread(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const result = await threadService.unrepostThread(id, userId);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error("Erreur unrepostThread:", error);
+      res.status(400).json({
+        success: false,
+        message: error.message || "Erreur lors de l'annulation du repost",
+      });
     }
   }
 }
 
-export default new ThreadController()
+export default new ThreadController();

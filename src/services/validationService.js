@@ -200,6 +200,11 @@ class ValidationService {
           if (contentType === "thread") {
             await Thread.findByIdAndDelete(contentId);
           } else {
+            // Si c'est une réponse, décrémenter le compteur du thread parent
+            const reply = await Reply.findById(contentId);
+            if (reply && reply.thread) {
+              await Thread.findByIdAndUpdate(reply.thread, { $inc: { repliesCount: -1 } });
+            }
             await Reply.findByIdAndDelete(contentId);
           }
           
